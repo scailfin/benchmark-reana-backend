@@ -41,8 +41,8 @@ class TestREANAWorkflowEngine(TestCase):
 
     def tearDown(self):
         """Remove the temporary target directory."""
-        #if os.path.isdir(TMP_DIR):
-        #    shutil.rmtree(TMP_DIR)
+        if os.path.isdir(TMP_DIR):
+            shutil.rmtree(TMP_DIR)
         pass
 
     def test_run_helloworld(self):
