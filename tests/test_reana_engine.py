@@ -16,10 +16,8 @@ import benchtmpl.error as err
 
 DATA_FILE = './tests/files/names.txt'
 TEMPLATE_FILE = 'tests/files/template/template.yaml'
-TEMPLATE_WITH_INVALID_CMD = 'tests/files/template/template-invalid-cmd.yaml'
-TEMPLATE_WITH_MISSING_FILE = 'tests/files/template/template-missing-file.yaml'
+TEMPLATE_ERROR_FILE = 'tests/files/template/template-error.yaml'
 TMP_DIR = './tests/files/.tmp'
-UNKNOWN_FILE = './tests/files/.tmp/no/file/here'
 WORKFLOW_DIR = './tests/files/template'
 
 
@@ -70,6 +68,26 @@ class TestREANAWorkflowEngine(TestCase):
         self.assertEqual(len(greetings), 2)
         self.assertEqual(greetings[0], 'Hello Alice!')
         self.assertEqual(greetings[1], 'Hello Bob!')
+
+    def test_run_helloworld_error(self):
+        """Execute the helloworld example that creates a workflow that ends up
+        in an error state.
+        """
+        template = self.repo.add_template(
+            src_dir=WORKFLOW_DIR,
+            template_spec_file=TEMPLATE_ERROR_FILE
+        )
+        arguments = {
+            'names': template.get_argument('names', FileHandle(DATA_FILE)),
+            'sleeptime': template.get_argument('sleeptime', 3)
+        }
+        # Run workflow asyncronously
+        run_id = self.engine.execute(template, arguments)
+        while self.engine.get_state(run_id).is_active():
+            time.sleep(1)
+        state = self.engine.get_state(run_id)
+        self.assertTrue(state.is_error())
+        self.assertEqual(len(state.messages), 1)
 
 
 if __name__ == '__main__':

@@ -158,7 +158,11 @@ class REANATestClient(object):
             obj['status'] = rn.REANA_STATE_RUNNING
         elif state.is_error():
             obj['status'] = rn.REANA_STATE_ERROR
-            obj['logs'] = '\n'.join(state.messages)
+            messages = list()
+            for msg in state.messages:
+                for line in str(msg).split('\n'):
+                    messages.append(line)
+            obj['logs'] = ['\n'.join(messages)]
         elif state.is_success():
             obj['status'] = rn.REANA_STATE_SUCCESS
         return obj
