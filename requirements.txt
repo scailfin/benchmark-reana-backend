@@ -1,0 +1,2 @@
+benchmark-templates==0.1.2
+reana-client==0.5.0
