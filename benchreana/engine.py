@@ -87,8 +87,22 @@ class REANAWorkflowEngine(object):
         ----------
         run_id: string
             Unique run identifier
+
+        Raises
+        ------
+        benchreana.error.REANABackendError
+        benchtmpl.error.UnknownRunError
         """
-        pass
+        # Get the run directory. Raises error if the directory does not exist
+        run_dir = os.path.join(self.base_dir, run_id)
+        if not os.path.isdir(run_dir):
+            raise err.UnknownRunError(run_id)
+        # Read materialized workflow state from file to get the REANA workflow
+        # identifier
+        filename = os.path.join(run_dir, STATE_FILE)
+        obj = util.read_object(filename)
+        workflow_id = obj[LABEL_WORKFLOW_ID]
+        self.reana.stop_workflow(workflow_id)
 
     def execute(self, template, arguments):
         """Execute a given workflow template for a set of argument values.
@@ -115,6 +129,7 @@ class REANAWorkflowEngine(object):
 
         Raises
         ------
+        benchreana.error.REANABackendError
         benchtmpl.error.MissingArgumentError
         """
         # Before we start creating directories and copying files make sure that
@@ -191,6 +206,7 @@ class REANAWorkflowEngine(object):
 
         Raises
         ------
+        benchreana.error.REANABackendError
         benchtmpl.error.UnknownRunError
         """
         # Get the run directory. Raises error if the directory does not exist
@@ -215,13 +231,13 @@ class REANAWorkflowEngine(object):
         else:
             started_at = ts
         state_change = False
-        if reana_status == rn.REANA_STATE_RUNNING and not state.is_running():
+        if reana_status in rn.REANA_STATE_RUNNING and not state.is_running():
             state = wf.StateRunning(
                 created_at=state.created_at,
                 started_at=started_at
             )
             state_change = True
-        elif reana_status == rn.REANA_STATE_ERROR:
+        elif reana_status in rn.REANA_STATE_ERROR:
             state = wf.StateError(
                 created_at=state.created_at,
                 started_at=started_at,
@@ -229,7 +245,7 @@ class REANAWorkflowEngine(object):
                 messages=response['logs']
             )
             state_change = True
-        elif reana_status == rn.REANA_STATE_SUCCESS:
+        elif reana_status in rn.REANA_STATE_SUCCESS:
             # Download result files to local files folder
             resources = dict()
             files_dir = os.path.join(run_dir, OUTPUT_DIR)

@@ -11,7 +11,7 @@ from benchreana.tests import REANATestClient
 from benchtmpl.io.files.base import FileHandle
 from benchtmpl.workflow.template.repo import TemplateRepository
 
-import benchtmpl.error as err
+import benchreana.error as err
 
 
 DATA_FILE = './tests/files/names.txt'
@@ -68,6 +68,25 @@ class TestREANAWorkflowEngine(TestCase):
         self.assertEqual(len(greetings), 2)
         self.assertEqual(greetings[0], 'Hello Alice!')
         self.assertEqual(greetings[1], 'Hello Bob!')
+
+    def test_run_helloworld_cancel(self):
+        """Execute the helloworld example and cancel execution."""
+        template = self.repo.add_template(
+            src_dir=WORKFLOW_DIR,
+            template_spec_file=TEMPLATE_FILE
+        )
+        arguments = {
+            'names': template.get_argument('names', FileHandle(DATA_FILE)),
+            'sleeptime': template.get_argument('sleeptime', 30)
+        }
+        # Run workflow asyncronously
+        run_id = self.engine.execute(template, arguments)
+        while self.engine.get_state(run_id).is_active():
+            # Cancel the run
+            self.engine.cancel_run(run_id)
+            break
+        with self.assertRaises(err.REANABackendError):
+            self.engine.get_state(run_id)
 
     def test_run_helloworld_error(self):
         """Execute the helloworld example that creates a workflow that ends up

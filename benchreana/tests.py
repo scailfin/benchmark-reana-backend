@@ -16,11 +16,12 @@ import shutil
 
 from string import Template
 
-from benchproc.backend.engine import MultiProcessWorkflowEngine
+from benchproc.engine import MultiProcessWorkflowEngine
 from benchreana.error import REANABackendError
 from benchtmpl.backend.files import FileCopy
 
 import benchreana.client as rn
+import benchtmpl.error as err
 import benchtmpl.util.core as util
 
 
@@ -46,25 +47,29 @@ class REANATestClient(object):
         specification. The test implementation writes the workflow specification
         to file for further references.
 
+        Parameters
+        ----------
+        reana_specification: dict
+            REANA workflow specification
+
         Returns
         -------
         dict
 
         "schema": {
-          "properties": {
-            "message": {
-              "type": "string"
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "workflow_id": {
+                    "type": "string"
+                },
+                "workflow_name": {
+                    "type": "string"
+                }
             },
-            "workflow_id": {
-              "type": "string"
-            },
-            "workflow_name": {
-              "type": "string"
-            }
-          },
-          "type": "object"
+            "type": "object"
         }
-
         """
         # Remove all files in the base directory
         for filename in os.listdir(self.base_dir):
@@ -79,7 +84,7 @@ class REANATestClient(object):
         filename = os.path.join(self.base_dir, identifier + '.json')
         util.write_object(filename, reana_specification)
         return {
-            'message': rn.REANA_STATE_PENDING,
+            'message': rn.REANA_STATE_PENDING[0],
             'workflow_id': identifier,
             'workflow_name': 'workflow.1'
         }
@@ -89,6 +94,10 @@ class REANATestClient(object):
 
         Parameters
         ----------
+        Parameters
+        ----------
+        workflow_id: string
+            Unique workflow identifier
         source: string
             Relative path to source file in workflow workspace at REANA cluster
         target: string
@@ -119,82 +128,94 @@ class REANATestClient(object):
         dict
 
         "schema": {
-          "properties": {
-            "created": {
-              "type": "string"
+            "properties": {
+                "created": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "logs": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "object"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "user": {
+                    "type": "string"
+                }
             },
-            "id": {
-              "type": "string"
-            },
-            "logs": {
-              "type": "string"
-            },
-            "name": {
-              "type": "string"
-            },
-            "progress": {
-              "type": "object"
-            },
-            "status": {
-              "type": "string"
-            },
-            "user": {
-              "type": "string"
-            }
-          },
-          "type": "object"
+            "type": "object"
         }
         """
-        state = self.engine.get_state(workflow_id)
+        try:
+            state = self.engine.get_state(workflow_id)
+        except err.UnknownRunError as ex:
+            raise REANABackendError(message='canceled by user')
         obj = {
             'created': state.created_at.isoformat(),
             'id': workflow_id,
             'name': 'workflow.1',
-            'progress': state.type_id
+            'progress': state.type_id,
+            'user': '0000000000000000'
         }
         if state.is_pending():
-            obj['status'] = rn.REANA_STATE_PENDING
+            obj['status'] = rn.REANA_STATE_PENDING[0]
         elif state.is_running():
-            obj['status'] = rn.REANA_STATE_RUNNING
+            obj['status'] = rn.REANA_STATE_RUNNING[0]
         elif state.is_error():
-            obj['status'] = rn.REANA_STATE_ERROR
+            obj['status'] = rn.REANA_STATE_ERROR[0]
             messages = list()
             for msg in state.messages:
                 for line in str(msg).split('\n'):
                     messages.append(line)
             obj['logs'] = ['\n'.join(messages)]
         elif state.is_success():
-            obj['status'] = rn.REANA_STATE_SUCCESS
+            obj['status'] = rn.REANA_STATE_SUCCESS[0]
         return obj
 
     def start_workflow(self, workflow_id):
         """Execute the workflow with the given identifier.
+
+        Parameters
+        ----------
+        workflow_id: string
+            Unique workflow identifier
 
         Returns
         -------
         dict
 
         "schema": {
-          "properties": {
-            "message": {
-              "type": "string"
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "user": {
+                    "type": "string"
+                },
+                "workflow_id": {
+                    "type": "string"
+                },
+                "workflow_name": {
+                    "type": "string"
+                }
             },
-            "status": {
-              "type": "string"
-            },
-            "user": {
-              "type": "string"
-            },
-            "workflow_id": {
-              "type": "string"
-            },
-            "workflow_name": {
-              "type": "string"
-            }
-          },
-          "type": "object"
+            "type": "object"
         }
 
+        Raises
+        ------
+        benchreana.error.REANABackendError
         """
         # Read workflow template from disk
         filename = os.path.join(self.base_dir, workflow_id + '.json')
@@ -208,7 +229,7 @@ class REANATestClient(object):
                 try:
                     commands.append(Template(command).substitute(params))
                 except KeyError as ex:
-                    raise err.InvalidTemplateError(str(ex))
+                    raise REANABackendError(message=str(ex))
         # Get list of output files
         state = self.engine.run_async(
             identifier=workflow_id,
@@ -219,16 +240,58 @@ class REANATestClient(object):
         )
         # Translate workflow state into REANA status
         if state.is_running():
-            status = rn.REANA_STATE_RUNNING
+            status = rn.REANA_STATE_RUNNING[0]
         elif state.is_error():
-            status = rn.REANA_STATE_ERROR
+            status = rn.REANA_STATE_ERROR[0]
         elif state.is_success():
-            status = rn.REANA_STATE_SUCCESS
+            status = rn.REANA_STATE_SUCCESS[0]
         else:
-            status = rn.REANA_STATE_PENDING
+            status = rn.REANA_STATE_PENDING[0]
         return {
             'message': state.type_id,
             'status': status,
+            'user': '00000000000000',
+            'workflow_id': workflow_id,
+            'workflow_name': 'workflow.1'
+        }
+
+    def stop_workflow(self, workflow_id):
+        """Stop the execution of the workflow with the given identifier.
+
+        Parameters
+        ----------
+        workflow_id: string
+            Unique workflow identifier
+
+        Returns
+        -------
+        dict
+
+        "schema": {
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "user": {
+                    "type": "string"
+                },
+                "workflow_id": {
+                    "type": "string"
+                },
+                "workflow_name": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        }
+        """
+        self.engine.cancel_run(workflow_id)
+        return {
+            'message': 'canceled by user',
+            'status': 'stopped',
             'user': '00000000000000',
             'workflow_id': workflow_id,
             'workflow_name': 'workflow.1'

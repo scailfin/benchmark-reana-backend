@@ -5,12 +5,12 @@ readme = open('README.rst').read()
 
 install_requires=[
     'benchmark-templates==0.1.2',
-    'reana-client==0.5.0'
+    'reana-client>=0.5.0'
 ]
 
 
 tests_require = [
-    'benchmark-multiprocess>=0.1.1',
+    'benchmark-multiprocess>=0.1.2',
     'coverage>=4.0',
     'coveralls',
     'nose'
