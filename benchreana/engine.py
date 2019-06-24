@@ -81,8 +81,6 @@ class REANAWorkflowEngine(object):
     def cancel_run(self, run_id):
         """Request to cancel execution of the given run.
 
-        Not sure att this point whether REANA supports that.
-
         Parameters
         ----------
         run_id: string
@@ -101,8 +99,19 @@ class REANAWorkflowEngine(object):
         # identifier
         filename = os.path.join(run_dir, STATE_FILE)
         obj = util.read_object(filename)
-        workflow_id = obj[LABEL_WORKFLOW_ID]
-        self.reana.stop_workflow(workflow_id)
+        state = wf.WorkflowState.from_dict(obj[LABEL_STATE])
+        # Nothing to do if the workflow is inactive
+        if not state.is_active():
+            return state
+        elif state.is_running():
+            # The REANA cluster only allows running workflows to be stopped.
+            workflow_id = obj[LABEL_WORKFLOW_ID]
+            self.reana.stop_workflow(workflow_id)
+        # Update the workflow state to is_error
+        state = state.error(messages=['canceled by user'])
+        # Write updated state to file
+        obj[LABEL_STATE] = state.to_dict()
+        util.write_object(filename=filename, obj=obj)
 
     def execute(self, template, arguments):
         """Execute a given workflow template for a set of argument values.
@@ -261,6 +270,7 @@ class REANAWorkflowEngine(object):
                 resources=resources
             )
             state_change = True
+        # Write updated state to file (if changed)
         if state_change:
             obj[LABEL_STATE] = state.to_dict()
             util.write_object(filename=filename, obj=obj)

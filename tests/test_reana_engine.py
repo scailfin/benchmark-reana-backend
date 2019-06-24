@@ -85,8 +85,9 @@ class TestREANAWorkflowEngine(TestCase):
             # Cancel the run
             self.engine.cancel_run(run_id)
             break
-        with self.assertRaises(err.REANABackendError):
-            self.engine.get_state(run_id)
+        state = self.engine.get_state(run_id)
+        self.assertTrue(state.is_error())
+        self.assertEqual(len(state.messages), 1)
 
     def test_run_helloworld_error(self):
         """Execute the helloworld example that creates a workflow that ends up

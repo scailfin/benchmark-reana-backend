@@ -12,6 +12,8 @@ required by the workflow engine to execute workflows, cancel workflow
 execution, get workflow status, and download workflow result files.
 """
 
+import json
+import logging
 import os
 
 from benchreana.error import REANABackendError
@@ -67,6 +69,7 @@ class REANAClient(object):
              self.access_token = os.getenv('REANA_ACCESS_TOKEN', None)
         if self.access_token is None:
             raise RuntimeError('REANA access token not defined defined')
+        logging.info('access token {}'.format(self.access_token))
 
     def create_workflow(self, reana_specification):
         """Create a new instance of a workflow from the given workflow
@@ -101,11 +104,14 @@ class REANAClient(object):
         benchreana.error.REANABackendError
         """
         try:
-            return reana.create_workflow(
+            response = reana.create_workflow(
                 reana_specification,
                 self.name,
                 self.access_token
             )
+            logging.info('CREATE WORKFLOW')
+            logging.info(json.dumps(response, indent=4))
+            return response
         except Exception as ex:
             raise REANABackendError(message=str(ex))
 
@@ -182,7 +188,10 @@ class REANAClient(object):
         benchreana.error.REANABackendError
         """
         try:
-            return reana.get_workflow_status(workflow_id, self.access_token)
+            response = reana.get_workflow_status(workflow_id, self.access_token)
+            logging.info('WORKFLOW STATUS')
+            logging.info(json.dumps(response, indent=4))
+            return response
         except Exception as ex:
             raise REANABackendError(message=str(ex))
 
@@ -224,7 +233,10 @@ class REANAClient(object):
         benchreana.error.REANABackendError
         """
         try:
-            return reana.start_workflow(workflow_id, self.access_token, dict())
+            response = reana.start_workflow(workflow_id, self.access_token, dict())
+            logging.info('START WORKFLOW')
+            logging.info(json.dumps(response, indent=4))
+            return response
         except Exception as ex:
             raise REANABackendError(message=str(ex))
 
@@ -266,7 +278,10 @@ class REANAClient(object):
         benchreana.error.REANABackendError
         """
         try:
-            return reana.stop_workflow(workflow_id, True, self.access_token)
+            response = reana.stop_workflow(workflow_id, True, self.access_token)
+            logging.info('STOP WORKFLOW')
+            logging.info(json.dumps(response, indent=4))
+            return response
         except Exception as ex:
             raise REANABackendError(message=str(ex))
 
@@ -302,7 +317,7 @@ class REANAClient(object):
         else:
             # The REANA client file upload function expects a file object for
             # the file that is being uploaded.
-            with open(soure, 'rb') as f:
+            with open(source, 'rb') as f:
                 try:
                     reana.upload_file(
                         workflow_id,
