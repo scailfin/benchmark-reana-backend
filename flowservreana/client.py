@@ -1,7 +1,7 @@
 # This file is part of the Reproducible and Reusable Data Analysis Workflow
 # Server (flowServ).
 #
-# Copyright (C) [2019-2020] NYU.
+# Copyright (C) 2019-2020 NYU.
 #
 # flowServ is free software; you can redistribute it and/or modify it under the
 # terms of the MIT License; see LICENSE file for more details.
@@ -169,7 +169,7 @@ class REANAClient(RemoteClient):
             Path to target file on local disk
         """
         raw_bytes = self.reana.download_file(workflow_id, source, self.token)
-        util.create_dir(os.path.exists(os.path.dirname(target)))
+        util.create_dir(os.path.dirname(target))
         with open(target, 'wb') as f:
             f.write(raw_bytes)
 

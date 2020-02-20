@@ -1,7 +1,7 @@
 # This file is part of the Reproducible and Reusable Data Analysis Workflow
 # Server (flowServ).
 #
-# Copyright (C) [2019-2020] NYU.
+# Copyright (C) 2019-2020 NYU.
 #
 # flowServ is free software; you can redistribute it and/or modify it under the
 # terms of the MIT License; see LICENSE file for more details.
@@ -96,6 +96,7 @@ class REANATestAPI(object):
                 self.status = rn.REANA_STATE_SUCCESS[0]
                 util.create_dir(os.path.join(workflowdir, 'results'))
                 outfile = os.path.join(workflowdir, 'results/outputs.json')
+                print('create output file {}'.format(outfile))
                 util.write_object(obj=doc, filename=outfile)
         return {'status': self.status}
 

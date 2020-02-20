@@ -15,8 +15,8 @@ from setuptools import setup, find_packages
 """Required packages for install, test, docs, and tests."""
 
 install_requires = [
-    'flowserv-core>=0.1.1',
-    'reana-client>=0.5.0',
+    'flowserv-core==0.1.1',
+    'reana-client>=0.6.0',
     'Click'
 ]
 
