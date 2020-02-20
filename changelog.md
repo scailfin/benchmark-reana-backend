@@ -1,5 +1,5 @@
-# REANA Workflow Engine for Reproducible Benchmark Templates - Changelog
+# REANA Workflow Controller for the Reproducible and Reusable Data Analysis Workflow Server (flowServ) - Changelog
 
-### 0.0.1 - 2019-06-23
+### 0.1.0 - (ongoing))
 
 * Initial Commit

@@ -1,115 +1,104 @@
-"""Test functinality of the REANA backend."""
+# This file is part of the Reproducible and Reusable Data Analysis Workflow
+# Server (flowServ).
+#
+# Copyright (C) [2019-2020] NYU.
+#
+# flowServ is free software; you can redistribute it and/or modify it under the
+# terms of the MIT License; see LICENSE file for more details.
 
-from unittest import TestCase
+"""Unit tests for the REANA workflow controller and client."""
 
 import os
-import shutil
 import time
 
-from benchreana.engine import REANAWorkflowEngine
-from benchreana.tests import REANATestClient
-from benchtmpl.io.files.base import FileHandle
-from benchtmpl.workflow.template.repo import TemplateRepository
+from flowserv.service.api import API
+from flowserv.tests.files import FakeStream
+from flowservreana.client import REANAClient
+from flowservreana.controller import REANAWorkflowController
+from flowservreana.tests import REANATestAPI
 
-import benchreana.error as err
-
-
-DATA_FILE = './tests/files/names.txt'
-TEMPLATE_FILE = 'tests/files/template/template.yaml'
-TEMPLATE_ERROR_FILE = 'tests/files/template/template-error.yaml'
-TMP_DIR = './tests/files/.tmp'
-WORKFLOW_DIR = './tests/files/template'
+import flowserv.config.api as config
+import flowserv.core.util as util
+import flowserv.model.workflow.state as st
+import flowserv.tests.db as db
 
 
-class TestREANAWorkflowEngine(TestCase):
-    """Test executing workflows from templates using the REANA workflow
-    engine. Uses the test client that does not require a running REANA cluster
-    for unit testing.
-    """
-    def setUp(self):
-        """Create an empty target directory for each test and intitialize the
-        file loader function.
-        """
-        self.tearDown()
-        self.engine = REANAWorkflowEngine(
-            base_dir=os.path.join(TMP_DIR, 'engine'),
-            client=REANATestClient(base_dir=os.path.join(TMP_DIR, 'cluster'))
+# Template directory
+DIR = os.path.dirname(os.path.realpath(__file__))
+TEMPLATE_DIR = os.path.join(DIR, './.files')
+
+
+# Default users
+UID = '0000'
+
+
+def test_run_reana_workflow(tmpdir):
+    """Execute the fake workflow example."""
+    # -- Setup ----------------------------------------------------------------
+    # Create the database and service API with a serial workflow engine in
+    # asynchronous mode
+    os.environ[config.FLOWSERV_API_BASEDIR] = os.path.abspath(str(tmpdir))
+    api = API(
+        con=db.init_db(str(tmpdir), users=[UID]).connect(),
+        engine=REANAWorkflowController(
+            client=REANAClient(
+                reana_client=REANATestAPI(basedir=str(tmpdir)),
+                access_token='XXXX'
+            )
         )
-        self.repo = TemplateRepository(base_dir=os.path.join(TMP_DIR, 'repo'))
-
-    def tearDown(self):
-        """Remove the temporary target directory."""
-        if os.path.isdir(TMP_DIR):
-            shutil.rmtree(TMP_DIR)
-        pass
-
-    def test_run_helloworld(self):
-        """Execute the helloworld example."""
-        template = self.repo.add_template(
-            src_dir=WORKFLOW_DIR,
-            template_spec_file=TEMPLATE_FILE
-        )
-        arguments = {
-            'names': template.get_argument('names', FileHandle(DATA_FILE)),
-            'sleeptime': template.get_argument('sleeptime', 3)
-        }
-        # Run workflow asyncronously
-        run_id = self.engine.execute(template, arguments)
-        while self.engine.get_state(run_id).is_active():
-            time.sleep(1)
-        state = self.engine.get_state(run_id)
-        self.assertTrue(state.is_success())
-        self.assertEqual(len(state.resources), 1)
-        self.assertTrue('results/greetings.txt' in state.resources)
-        greetings = list()
-        with open(state.resources['results/greetings.txt'].filepath, 'r') as f:
-            for line in f:
-                greetings.append(line.strip())
-        self.assertEqual(len(greetings), 2)
-        self.assertEqual(greetings[0], 'Hello Alice!')
-        self.assertEqual(greetings[1], 'Hello Bob!')
-
-    def test_run_helloworld_cancel(self):
-        """Execute the helloworld example and cancel execution."""
-        template = self.repo.add_template(
-            src_dir=WORKFLOW_DIR,
-            template_spec_file=TEMPLATE_FILE
-        )
-        arguments = {
-            'names': template.get_argument('names', FileHandle(DATA_FILE)),
-            'sleeptime': template.get_argument('sleeptime', 30)
-        }
-        # Run workflow asyncronously
-        run_id = self.engine.execute(template, arguments)
-        while self.engine.get_state(run_id).is_active():
-            # Cancel the run
-            self.engine.cancel_run(run_id)
-            break
-        state = self.engine.get_state(run_id)
-        self.assertTrue(state.is_error())
-        self.assertEqual(len(state.messages), 1)
-
-    def test_run_helloworld_error(self):
-        """Execute the helloworld example that creates a workflow that ends up
-        in an error state.
-        """
-        template = self.repo.add_template(
-            src_dir=WORKFLOW_DIR,
-            template_spec_file=TEMPLATE_ERROR_FILE
-        )
-        arguments = {
-            'names': template.get_argument('names', FileHandle(DATA_FILE)),
-            'sleeptime': template.get_argument('sleeptime', 3)
-        }
-        # Run workflow asyncronously
-        run_id = self.engine.execute(template, arguments)
-        while self.engine.get_state(run_id).is_active():
-            time.sleep(1)
-        state = self.engine.get_state(run_id)
-        self.assertTrue(state.is_error())
-        self.assertEqual(len(state.messages), 1)
-
-
-if __name__ == '__main__':
-    import unittest
-    unittest.main()
+    )
+    # Create workflow template and run group
+    wh = api.workflows().create_workflow(name='W1', sourcedir=TEMPLATE_DIR)
+    w_id = wh['id']
+    gh = api.groups().create_group(workflow_id=w_id, name='G', user_id=UID)
+    g_id = gh['id']
+    # Upload the names file
+    fh = api.uploads().upload_file(
+        group_id=g_id,
+        file=FakeStream(data={'action': 'SUCCESS'}),
+        name='sucess.txt',
+        user_id=UID
+    )
+    file_id = fh['id']
+    # -- Test successful run --------------------------------------------------
+    # Run the workflow
+    run = api.runs().start_run(
+        group_id=g_id,
+        arguments=[{'id': 'todo', 'value': file_id}],
+        user_id=UID
+    )
+    r_id = run['id']
+    # Poll workflow state every second.
+    while run['state'] in st.ACTIVE_STATES:
+        time.sleep(1)
+        run = api.runs().get_run(run_id=r_id, user_id=UID)
+    assert run['state'] == st.STATE_SUCCESS
+    resources = dict()
+    for r in run['resources']:
+        resources[r['name']] = r['id']
+    f_id = resources['results/outputs.json']
+    fh = api.runs().get_result_file(run_id=r_id, resource_id=f_id, user_id=UID)
+    doc = util.read_object(fh.filename)
+    assert doc['action'] == 'SUCCESS'
+    # -- Test error run --------------------------------------------------
+    # Upload error file
+    fh = api.uploads().upload_file(
+        group_id=g_id,
+        file=FakeStream(data={'action': 'ERROR'}),
+        name='error.txt',
+        user_id=UID
+    )
+    file_id = fh['id']
+    # Run the workflow
+    run = api.runs().start_run(
+        group_id=g_id,
+        arguments=[{'id': 'todo', 'value': file_id}],
+        user_id=UID
+    )
+    r_id = run['id']
+    # Poll workflow state every second.
+    while run['state'] in st.ACTIVE_STATES:
+        time.sleep(1)
+        run = api.runs().get_run(run_id=r_id, user_id=UID)
+    assert run['state'] == st.STATE_ERROR
+    assert run['messages'] == ['unknown reason']

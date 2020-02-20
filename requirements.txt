@@ -1,2 +1,3 @@
-benchmark-templates==0.1.2
+flowserv-core>=0.1.1
 reana-client>=0.5.0
+Click

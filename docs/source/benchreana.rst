@@ -1,45 +1,45 @@
-benchreana package
+flowservreana package
 ==================
 
 Submodules
 ----------
 
-benchreana.client module
+flowservreana.client module
 ------------------------
 
-.. automodule:: benchreana.client
+.. automodule:: flowservreana.client
    :members:
    :undoc-members:
    :show-inheritance:
 
-benchreana.engine module
+flowservreana.engine module
 ------------------------
 
-.. automodule:: benchreana.engine
+.. automodule:: flowservreana.engine
    :members:
    :undoc-members:
    :show-inheritance:
 
-benchreana.error module
+flowservreana.error module
 -----------------------
 
-.. automodule:: benchreana.error
+.. automodule:: flowservreana.error
    :members:
    :undoc-members:
    :show-inheritance:
 
-benchreana.files module
+flowservreana.files module
 -----------------------
 
-.. automodule:: benchreana.files
+.. automodule:: flowservreana.files
    :members:
    :undoc-members:
    :show-inheritance:
 
-benchreana.tests module
+flowservreana.tests module
 -----------------------
 
-.. automodule:: benchreana.tests
+.. automodule:: flowservreana.tests
    :members:
    :undoc-members:
    :show-inheritance:
@@ -48,7 +48,7 @@ benchreana.tests module
 Module contents
 ---------------
 
-.. automodule:: benchreana
+.. automodule:: flowservreana
    :members:
    :undoc-members:
    :show-inheritance:
