@@ -71,3 +71,9 @@ target/
 
 # Testing and Development
 .tmp/
+
+
+.flowserv/
+.rob/
+resources/config/local_dev
+resources/config/ssl_config

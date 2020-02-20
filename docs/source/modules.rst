@@ -1,7 +1,7 @@
-benchreana
+flowservreana
 ==========
 
 .. toctree::
    :maxdepth: 4
 
-   benchreana
+   flowservreana

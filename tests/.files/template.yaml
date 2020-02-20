@@ -1,0 +1,20 @@
+workflow:
+    version: '0.3.0'
+    inputs:
+      files:
+        - '$[[todo]]'
+    workflow:
+      type: 'serial'
+      specification:
+        steps:
+          - environment: 'ENV'
+            commands:
+              - 'NONE'
+    outputs:
+      files:
+       - 'results/outputs.json'
+parameters:
+    - id: 'todo'
+      name: 'Input file'
+      datatype: 'file'
+      as: 'inputs/to-do.json'
