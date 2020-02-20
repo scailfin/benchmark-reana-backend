@@ -36,7 +36,7 @@ class REANAWorkflowController(RemoteWorkflowController):
             Flag that determines whether workflows execution is synchronous or
             asynchronous by default.
         """
-        super().__init__(
+        super(REANAWorkflowController, self).__init__(
             client=client if client is not None else REANAClient(),
             is_async=is_async
         )
