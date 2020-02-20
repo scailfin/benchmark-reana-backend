@@ -18,6 +18,8 @@ from flowserv.controller.remote.client import RemoteClient
 from flowserv.controller.remote.workflow import RemoteWorkflowHandle
 from flowservreana.workflow import REANAWorkflow
 
+import flowserv.core.util as util
+
 
 """Definition of possible workflow states. Uses lists since there is a 1:n
 mapping between the states of workflow benchmarks and REANA workflow states.
@@ -167,8 +169,7 @@ class REANAClient(RemoteClient):
             Path to target file on local disk
         """
         raw_bytes = self.reana.download_file(workflow_id, source, self.token)
-        if not os.path.exists(os.path.dirname(target)):
-            os.makedirs(os.path.dirname(target))
+        util.create_dir(os.path.exists(os.path.dirname(target)))
         with open(target, 'wb') as f:
             f.write(raw_bytes)
 
@@ -248,7 +249,7 @@ class REANAClient(RemoteClient):
         target: string
             Relative target path for file in workflow workspace
         """
-        # If the source references a directory the whole directory tree is
+        # If the source references a directorsy the whole directory tree is
         # copied
         if os.path.isdir(source):
             for root, dirs, files in os.walk(source, topdown=False):

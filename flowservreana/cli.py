@@ -13,14 +13,15 @@ workflows.
 """
 
 import click
-import json
+import os
 
+from flowserv.model.run.base import RunHandle
 from flowserv.model.template.base import WorkflowTemplate
+from flowserv.model.workflow.state import StatePending
 from flowservreana.client import REANAClient
 from flowservreana.workflow import REANAWorkflow
 
 import flowserv.core.util as util
-import flowservreana.error as err
 
 
 @click.group()
@@ -28,22 +29,6 @@ def cli():
     """Command Line Interface for the Reproducible Open Benchmark REANA
     workflow controller."""
     pass
-
-
-# -- Create Workflow ----------------------------------------------------------
-
-@cli.command(name='create')
-@click.option(
-    '-s', '--spec',
-    required=True,
-    type=click.Path(exists=True, dir_okay=False, readable=True),
-    help='Workflow specification file.'
-)
-def create_workflow(spec):
-    """Create a new workflow from the given specification."""
-    doc = util.read_object(filename=spec)
-    r = REANAClient().create_workflow(doc)
-    click.echo(json.dumps(r, indent=4))
 
 
 # -- Cancel Workflow ----------------------------------------------------------
@@ -57,27 +42,61 @@ def create_workflow(spec):
 def cancel_workflow(workflow):
     """Cancel workflow execution."""
     try:
-        r = REANAClient().stop_workflow(workflow)
-        click.echo(json.dumps(r, indent=4))
-    except err.REANABackendError as ex:
+        REANAClient().stop_workflow(workflow)
+        click.echo('workflow stopped')
+    except Exception as ex:
         click.echo('Error: {}'.format(ex))
 
 
-# -- Start Workflow -----------------------------------------------------------
+# -- Create and run workflow --------------------------------------------------
 
-@cli.command(name='start')
+@cli.command(name='run')
+@click.option(
+    '-s', '--spec',
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help='Workflow specification file.'
+)
+def run_workflow(spec):
+    """Create a new workflow run for the given specification."""
+    doc = util.read_object(filename=spec)
+    rundir = os.path.dirname(spec)
+    if not rundir:
+        rundir = '.'
+    run = RunHandle(
+        identifier='0000',
+        workflow_id='0000',
+        group_id='0000',
+        state=StatePending(),
+        arguments=dict(),
+        rundir=rundir
+    )
+    template = WorkflowTemplate(workflow_spec=doc, sourcedir=rundir)
+    wf = REANAClient().create_workflow(run, template, dict())
+    click.echo('created workflow {} ({})'.format(wf.identifier, wf.state))
+
+
+# -- Download result file -----------------------------------------------------
+
+@cli.command(name='download')
 @click.option(
     '-w', '--workflow',
     required=True,
     help='Workflow identifier.'
 )
-def start_workflow(workflow):
-    """Start a workflow run."""
-    try:
-        r = REANAClient().start_workflow(workflow)
-        click.echo(json.dumps(r, indent=4))
-    except err.REANABackendError as ex:
-        click.echo('Error: {}'.format(ex))
+@click.option(
+    '-i', '--source',
+    required=True,
+    help='Source file'
+)
+@click.option(
+    '-o', '--target',
+    required=True,
+    help='Target file'
+)
+def download_file(workflow, source, target):
+    """Download file from workflow workspace."""
+    REANAClient().download_file(workflow, source, target)
 
 
 # -- Workflow Status ----------------------------------------------------------
@@ -88,42 +107,10 @@ def start_workflow(workflow):
     required=True,
     help='Workflow identifier.'
 )
-def workflow_state(workflow):
+def get_workflow_state(workflow):
     """Get workflow state."""
     try:
-        r = REANAClient().get_current_status(workflow)
-        click.echo(json.dumps(r, indent=4))
-    except err.REANABackendError as ex:
+        state = REANAClient().get_workflow_state(workflow, StatePending())
+        click.echo('in state {}'.format(state))
+    except Exception as ex:
         click.echo('Error: {}'.format(ex))
-
-
-# -- Upload Workflow Files ----------------------------------------------------
-
-@cli.command(name='upload')
-@click.option(
-    '-s', '--spec',
-    required=True,
-    type=click.Path(exists=True, dir_okay=False, readable=True),
-    help='Workflow specification file.'
-)
-@click.option(
-    '-d', '--dir',
-    required=True,
-    type=click.Path(exists=True, dir_okay=True, file_okay=False, readable=True),
-    help='Base directory for workflow files.'
-)
-@click.option(
-    '-w', '--workflow',
-    required=True,
-    help='Workflow identifier.'
-)
-def upload_files(spec, dir, workflow):
-    """Upload workflow files."""
-    doc = util.read_object(filename=spec)
-    template = WorkflowTemplate(workflow_spec=doc, sourcedir=dir)
-    wf = REANAWorkflow(template=template, arguments=dict())
-    client = REANAClient()
-    for source, target in wf.upload_files():
-        click.echo('upload {} as {}'.format(source, target))
-        r = client.upload_file(workflow, source, target)
-        click.echo(json.dumps(r, indent=4))
