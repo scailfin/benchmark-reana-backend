@@ -5,6 +5,9 @@ REANA Workflow Controller for the Reproducible and Reusable Data Analysis Workfl
 .. image:: https://img.shields.io/badge/License-MIT-yellow.svg
    :target: https://github.com/scailfin/flowserv-reana-backend/blob/master/LICENSE
 
+.. image:: https://github.com/scailfin/flowserv-reana-backend/workflows/build/badge.svg
+   :target: https://github.com/scailfin/flowserv-reana-backend/actions?query=workflow%3A%22build%22
+
 
 
 About
